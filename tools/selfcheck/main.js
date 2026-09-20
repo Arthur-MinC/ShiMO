@@ -18,6 +18,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { app, BrowserWindow } = require('electron');
 
+// 截图必须**字节可重现**，否则「截图进版本库」会持续产生噪音 diff：
+// 每次重跑自检 5/6 张 PNG 都显示已修改，真发生 UI 变化时反而看不出来，
+// 真信号被编码抖动淹没。
+//
+// 抖动的来源是次像素抗锯齿（LCD text）——它依赖 GPU 与屏幕子像素排列；
+// 色彩配置同理。这两条钉死之后，同样的 fixture 就能渲染出同样的字节。
+app.commandLine.appendSwitch('disable-lcd-text');
+app.commandLine.appendSwitch('force-color-profile', 'srgb');
+
 const logger = require('../../src/main/core/logger');
 logger.init();
 logger.installCrashHandlers();
