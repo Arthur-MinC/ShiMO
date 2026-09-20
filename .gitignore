@@ -12,6 +12,15 @@ logs/
 # tencent-docx 流水线留痕（中间产物，成品已归档到 docs/）
 output/8e349cee-ff8f-42c0-aef2-f1dbc87f2edf/
 
+# 自检报告：含本机真实探测结果（装了哪个模拟器、adb 绝对路径），且每次运行都变
+output/selfcheck/report.json
+# 注：output/selfcheck/*.png 有意纳入版本库 —— README 直接引用它们，
+# 不另存副本（副本会漂，正是本项目的硬约定之一）。
+# 重跑自检后这几个 PNG 会显示为已修改，是预期行为，不必每次提交。
+
+# 本地工作记忆（工具侧约定与日志，不进仓库）
+.workbuddy/
+
 # 系统与编辑器
 Thumbs.db
 Desktop.ini
