@@ -108,7 +108,7 @@ node --test test/*.test.js                  # 单测
 node tools/launch.js --app tools/selfcheck  # 六屏真实渲染 + 几何检查
 ```
 
-### 三条硬约定
+### 四条硬约定
 
 1. **同一规则不得在多处各写一份。**
    已栽过两次：容器显示名（扫描页用 basename、解包页另一套，同一容器在相邻两屏名字不同）、
