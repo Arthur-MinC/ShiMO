@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拾模 · 桌面端 Live2D 运行时包提取工具 — 设计稿</title>
+<style>
+  :root{
+    --bg:#FAFAFA; --surface:#FFFFFF; --border:#E4E4E7;
+    --text:#18181B; --text-2:#71717A; --text-3:#A1A1AA;
+    --accent:#0F766E; --accent-soft:#F0FDFA; --warn:#B45309;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Geist','Noto Sans SC',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  svg text{font-family:'Geist','Noto Sans SC',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif}
+  .wrap{max-width:1180px;margin:0 auto;padding:56px 32px 96px}
+  header{border-bottom:1px solid var(--border);padding-bottom:28px;margin-bottom:40px}
+  h1{font-size:26px;font-weight:500;letter-spacing:-.01em;margin:0 0 10px}
+  header p{margin:0;color:var(--text-2);font-size:14px;line-height:1.7;max-width:68ch}
+  .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-size:12px;color:var(--text-2);border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:4px 12px}
+  h2{font-size:15px;font-weight:500;margin:0 0 20px;letter-spacing:.01em}
+  section{margin-bottom:56px}
+  .screens{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  .screen{background:transparent}
+  .screen svg{display:block;width:100%;height:auto}
+  .screen-label{margin-top:14px;font-size:13px;font-weight:500}
+  .screen-desc{margin-top:4px;font-size:12px;color:var(--text-2);line-height:1.6}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px}
+  .card h3{font-size:13px;font-weight:500;margin:0 0 12px}
+  .card p{font-size:13px;line-height:1.75;color:var(--text-2);margin:0 0 10px}
+  .card p:last-child{margin-bottom:0}
+  .card strong{color:var(--text);font-weight:500}
+  pre{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+      padding:20px;font-size:12px;line-height:1.9;overflow-x:auto;color:var(--text-2);margin:0;
+      font-family:ui-monospace,'JetBrains Mono',Consolas,monospace}
+  pre b{color:var(--text);font-weight:500}
+  code{font-family:ui-monospace,'JetBrains Mono',Consolas,monospace;font-size:12px;color:var(--text)}
+  .swatches{display:flex;gap:14px;flex-wrap:wrap}
+  .sw{width:104px}
+  .sw i{display:block;height:54px;border-radius:10px;border:1px solid var(--border)}
+  .sw span{display:block;font-size:11px;color:var(--text-2);margin-top:8px;line-height:1.5}
+  .sw em{font-style:normal;font-family:ui-monospace,Consolas,monospace;color:var(--text-3)}
+  .warn{border-color:#FDE68A;background:#FFFBEB}
+  .warn h3{color:var(--warn)}
+  ol.steps{margin:0;padding-left:20px;font-size:13px;line-height:2;color:var(--text-2)}
+  ol.steps strong{color:var(--text);font-weight:500}
+  table{border-collapse:collapse;width:100%;font-size:12px}
+  th{text-align:left;font-weight:500;color:var(--text-2);padding:8px 12px 8px 0;border-bottom:1px solid var(--border)}
+  td{padding:8px 12px 8px 0;border-bottom:1px solid var(--border);color:var(--text-2);vertical-align:top;line-height:1.6}
+  td code{color:var(--text)}
+  @media(max-width:980px){.screens{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>拾模 · 桌面端 Live2D 运行时包提取工具</h1>
+  <p>在 Windows 上自动发现本机的安卓模拟器实例，通过 ADB 定位目标游戏目录，把散落各处的 Live2D 运行时文件重新聚合成完整模型包，导出到本地磁盘后直接用 Cubism Editor 打开。</p>
+  <div class="meta">
+    <span class="chip">Windows 桌面应用</span>
+    <span class="chip">数据源：安卓模拟器</span>
+    <span class="chip">ADB 通道</span>
+    <span class="chip">4 步主流程</span>
+    <span class="chip">2 个异常态</span>
+    <span class="chip">界面文案：中文</span>
+  </div>
+</header>
+
+<section>
+  <h2>核心流程 · 4 步</h2>
+  <div class="screens" id="screens"></div>
+</section>
+
+<section>
+  <h2>异常与边界态 · 2 态</h2>
+  <p style="margin:-6px 0 22px;font-size:13px;color:var(--text-2);line-height:1.7;max-width:74ch">
+    扫描阶段只有两条岔路：<strong style="color:var(--text);font-weight:500">什么都没扫到</strong>，和<strong style="color:var(--text);font-weight:500">扫到了但打不开</strong>。这两态的共同原则是<strong style="color:var(--text);font-weight:500">不许静默</strong>——必须说清为什么，以及下一步能做什么。</p>
+  <div class="screens" id="states"></div>
+</section>
+
+<section>
+  <h2>设计规范</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>色彩</h3>
+      <div class="swatches">
+        <div class="sw"><i style="background:#0F766E"></i><span>强调色<br><em>#0F766E</em></span></div>
+        <div class="sw"><i style="background:#F0FDFA"></i><span>强调浅底<br><em>#F0FDFA</em></span></div>
+        <div class="sw"><i style="background:#18181B"></i><span>主文字<br><em>#18181B</em></span></div>
+        <div class="sw"><i style="background:#71717A"></i><span>次级文字<br><em>#71717A</em></span></div>
+        <div class="sw"><i style="background:#A1A1AA"></i><span>辅助文字<br><em>#A1A1AA</em></span></div>
+        <div class="sw"><i style="background:#E4E4E7"></i><span>分隔线<br><em>#E4E4E7</em></span></div>
+      </div>
+      <p style="margin-top:16px">全稿只有一个强调色。警告态用 <code>#B45309</code>，只出现在「缺纹理」这类校验失败标记和对应提示上。不使用纯黑。</p>
+    </div>
+    <div class="card">
+      <h3>尺寸与节奏</h3>
+      <p><strong>标题栏</strong> 30px · <strong>工具栏</strong> 44px · <strong>状态栏</strong> 24px<br>
+         <strong>侧栏</strong> 180px 固定 · 主区自适应<br>
+         <strong>字号</strong> 窗口标题 12、区块标题 13、正文与表格 12、辅助 11、状态栏 10<br>
+         <strong>列表行高</strong> 32px（侧栏项）/ 30px（表格行）</p>
+      <p>圆角：输入框与按钮 6–8px，窗口 8px，侧栏选中态 6px。边框只用 1px，不堆卡片，靠分隔线组织。</p>
+      <p>示例稿按 <strong>600×375</strong> 绘制，为实际窗口尺寸（约 1200×750）的等比缩放版；开发实现时整体 ×2 并使用相同比例。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>关键设计决策</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>1. 不要求用户知道模拟器装在哪</h3>
+      <p>这是和手机方案最大的区别。模拟器都开着自己的 ADB 端口（MuMu <code>16384</code>、雷电 <code>5555</code>、夜神 <code>62001</code>、逍遥 <code>21503</code>），软件扫端口和进程即可列出实例。<strong>用户点一下就行，不用去翻安装目录。</strong></p>
+    </div>
+    <div class="card">
+      <h3>2. 走 ADB 而不是读磁盘镜像</h3>
+      <p>模拟器的系统盘是 vmdk / img 镜像，直接解析需要处理 ext4、分区表，还只能读未运行的实例。走 ADB 则不管模拟器开没开、镜像什么格式都能拿，代价只是要求实例处于运行状态——所以列表上要标清「运行中 / 未运行」。</p>
+    </div>
+    <div class="card">
+      <h3>3. 用模拟器自带的 adb.exe</h3>
+      <p>不同模拟器的 ADB 版本不同，混用会互相抢占端口把对方踢掉，报错还特别难懂。软件应优先复用所连模拟器目录下的 adb，找不到再回退到内置版本，并在状态栏显示当前用的是哪一个。</p>
+    </div>
+    <div class="card">
+      <h3>4. 表格而不是卡片列表</h3>
+      <p>桌面端屏幕宽，用户在结果页要横向比对「哪些包是残的」。模型名、内容构成、体积、状态排成列，扫一列状态就知道该跳过谁。手机端才需要卡片堆叠，这里不需要。</p>
+    </div>
+    <div class="card">
+      <h3>5. 默认已勾选完整包，残包不自动勾</h3>
+      <p>完整性校验的结果直接决定勾选状态：完整的包默认选中，缺文件的默认不选但在列表里标出来。用户不用逐个判断，也知道自己漏了什么——底部的「已选 4 个包 · 65.9 MB」随时对得上。</p>
+    </div>
+    <div class="card">
+      <h3>6. 收口在一键打开</h3>
+      <p>Cubism Editor 就在同一台机器上，所以最后一步不该是「告诉你文件在哪」，而是<strong>直接把 Cubism Editor 调起来</strong>。同时兜底给出「打开文件夹」和「复制路径」，并明确提示要选 <code>.model3.json</code> 而非 <code>.moc3</code>。</p>
+    </div>
+    <div class="card">
+      <h3>7. 进度态给「当前目录」，不给转圈</h3>
+      <p>用户判断程序有没有卡死的唯一依据，是路径和计数<strong>在变</strong>。所以进度页必须同时呈现三样东西：整体百分比、正在遍历的具体路径、以及已聚合的包数量。只放一个不确定进度的旋转图标，用户 30 秒后就会以为死了，然后强杀进程。</p>
+      <p>另外把五个阶段（探测 → 拉清单 → 遍历 → 聚合 → 校验）显式列在侧栏。大目录扫描动辄几分钟，让用户知道还剩几步，比让他盯着进度条干等体验好得多。</p>
+    </div>
+    <div class="card">
+      <h3>8. 空结果必须解释，不能给一张空表</h3>
+      <p>扫描器返回 0 个包时，如果界面上只有一张空表格，用户的第一反应是「这软件坏了」，然后卸载。<strong>空结果本质上是一个信息发现</strong>：扫到 3 个压缩容器、1 个疑似加密头，这些都必须报出来。</p>
+      <p>所以空态页承担的是诊断职责——列出已发现的容器及其格式判断，再给一条分级的能力边界说明：标准 zip / obb 能自动解包，自定义加密容器暂不支持。用户据此就知道该换工具还是换目录。</p>
+    </div>
+    <div class="card">
+      <h3>9. 解包失败的下一步是「继续」，不是「重试」</h3>
+      <p>加密容器解不开，重试一百次还是解不开。所以失败态的主按钮是<strong>「用已解包内容继续」</strong>——3 个容器里成功的那 1 个已经是 12 个可用模型包，把它导出去才是用户真正要的。</p>
+      <p>失败项逐条列出具体原因（未知压缩格式 / 自定义加密头 <code>0x4C32</code>），并在同一页写清「已写入诊断报告」。含糊的「部分资源处理失败」会让用户在群里问一圈还得不到答案。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>技术实现要点</h2>
+
+  <div class="card warn" style="margin-bottom:24px">
+    <h3>最大的不确定性：游戏资源往往不是明文的</h3>
+    <p>扫描器按扩展名找 <code>.model3.json</code> 只在明文资源的情况下成立。相当一部分游戏把 Live2D 资源打进 AssetBundle、<code>.obb</code>、zip 或自定义加密容器，此时扫不到任何东西，用户会以为是软件坏了。</p>
+    <p>建议的应对顺序：<strong>①</strong> 先做明文扫描，覆盖资源确实直接落盘的游戏；<strong>②</strong> 检测到 <code>.obb</code> / <code>.zip</code> 时提示「发现压缩资源包」并尝试标准解包；<strong>③</strong> AssetBundle 与加密容器作为后续能力，界面上如实告知不支持，别静默返回空结果。</p>
+    <p style="margin-top:14px">⚠️ <strong>勘误（2026-09-16，PRD 研究阶段发现）：</strong>本稿此前把「碧蓝航线」列为明文落盘的代表案例，<strong>这是错的</strong>。该游戏的 Live2D 资源虽然位于可访问的 <code>Android/data/com.bilibili.azurlane/files/AssetBundles/live2d/</code> 下，但文件本体是 AssetBundle（<code>.unity3d</code>），按 <code>.model3.json</code> 扩展名扫描会<strong>一个都扫不到</strong>，需经 UABE / AssetStudio 解析并附带 Unity 动画 → <code>motion3.json</code> 的格式转换。因此「明文扫描能覆盖多少游戏」必须在首发前逐款实测确认，不能按直觉假设。详见 PRD 的风险项 R-01。</p>
+    <p style="margin-top:14px">这条能力边界直接决定了上面两个异常态长什么样：<strong>态 A（空结果）</strong>要能说清「扫到了什么容器、为什么没命中」，<strong>态 B（解包失败）</strong>要能逐项列出哪个容器、失败在哪一步。两个态的代码量加起来不比主流程小，排期时别按边缘情况估。</p>
+  </div>
+
+  <div class="card" style="margin-bottom:24px">
+    <h3>权限与连接</h3>
+    <table>
+      <tr><th style="width:30%">场景</th><th>做法</th></tr>
+      <tr><td>读 <code>/sdcard/Android/data</code></td><td>模拟器通常允许，必要时 <code>adb root</code> 提权</td></tr>
+      <tr><td>读 <code>/data/data/&lt;包名&gt;</code></td><td>需 root。MuMu、雷电等可在模拟器设置里一键开启，检测到未开启时应给出引导而不是报错</td></tr>
+      <tr><td>拉取文件</td><td><code>adb pull</code>，保持相对路径结构</td></tr>
+      <tr><td>端口占用 / 多实例</td><td>Mumu 多开会递增端口；连接前先 <code>adb devices</code> 确认实例身份</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>导出结构（必须原样保持）</h3>
+    <pre><b>D:\Live2D\pjsk_extract\&lt;包名&gt;\</b>
+├── manifest.txt                 记录来源、校验结果、导出时间
+└── &lt;模型名&gt;\
+    ├── &lt;模型名&gt;.model3.json    ← 入口清单，Cubism Editor 打开这个
+    ├── &lt;模型名&gt;.moc3           ← 编译产物，无法反编译回 .cmo3
+    ├── &lt;模型名&gt;.physics3.json
+    ├── &lt;模型名&gt;.pose3.json
+    ├── &lt;模型名&gt;.cdi3.json
+    ├── &lt;模型名&gt;.2048/texture_00.png
+    ├── motions/*.motion3.json
+    └── expressions/*.exp3.json</pre>
+    <p style="margin-top:16px">路径全部相对于 <code>.model3.json</code>，整个文件夹必须一起移动，单独拷一个 moc3 出来毫无意义。模型名常含日文与特殊字符，注意目标文件系统的编码。导出时选的 SDK 版本需与打开用的 Cubism Editor 支持范围一致，否则会被直接拒绝加载。</p>
+  </div>
+</section>
+
+</div>
+
+<script>
+const TITLEBAR =
+  '<rect x="40" y="40" width="600" height="30" fill="#FAFAFA"/>' +
+  '<line x1="40" y1="70" x2="640" y2="70" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<rect x="52" y="49" width="12" height="12" rx="3" fill="#0F766E"/>' +
+  '<text x="72" y="55" font-size="12" font-weight="500" fill="#18181B" dominant-baseline="central">拾模</text>' +
+  '<line x1="569" y1="55" x2="579" y2="55" stroke="#71717A" stroke-width="1.2" stroke-linecap="round"/>' +
+  '<rect x="591" y="50" width="10" height="10" rx="2" fill="none" stroke="#71717A" stroke-width="1.2"/>' +
+  '<path d="M613 51 L623 59 M623 51 L613 59" fill="none" stroke="#71717A" stroke-width="1.2" stroke-linecap="round"/>';
+
+function toolbar(text, btn, pathColor) {
+  return '<rect x="40" y="70" width="600" height="44" fill="#FFFFFF"/>' +
+    '<line x1="40" y1="114" x2="640" y2="114" stroke="#E4E4E7" stroke-width="1"/>' +
+    '<rect x="52" y="80" width="460" height="26" rx="6" fill="#FAFAFA" stroke="#E4E4E7" stroke-width="1"/>' +
+    '<text x="64" y="93" font-size="11" fill="' + (pathColor || '#18181B') + '" dominant-baseline="central">' + text + '</text>' +
+    '<rect x="520" y="80" width="104" height="26" rx="6" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1"/>' +
+    '<text x="572" y="93" font-size="11" fill="#18181B" text-anchor="middle" dominant-baseline="central">' + btn + '</text>';
+}
+
+function statusbar(t) {
+  return '<rect x="40" y="391" width="600" height="24" fill="#FAFAFA"/>' +
+    '<line x1="40" y1="391" x2="640" y2="391" stroke="#E4E4E7" stroke-width="1"/>' +
+    '<text x="56" y="403" font-size="10" fill="#A1A1AA" dominant-baseline="central">' + t + '</text>';
+}
+
+const V = '<path d="M240 %y l2.5 2.5 l5 -5.5" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>';
+
+const S1 =
+  '<rect x="40" y="114" width="180" height="277" fill="#FAFAFA"/>' +
+  '<line x1="220" y1="114" x2="220" y2="391" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="56" y="134" font-size="11" fill="#71717A" dominant-baseline="central">模拟器</text>' +
+  '<rect x="48" y="144" width="164" height="48" rx="6" fill="#F0FDFA"/>' +
+  '<text x="60" y="164" font-size="12" font-weight="500" fill="#0F766E" dominant-baseline="central">MuMu 模拟器 12</text>' +
+  '<text x="60" y="180" font-size="10" fill="#0F766E" dominant-baseline="central">运行中 · Android 12 · root</text>' +
+  '<circle cx="202" cy="164" r="3.5" fill="#0F766E"/>' +
+  '<text x="60" y="216" font-size="12" fill="#18181B" dominant-baseline="central">雷电模拟器 9</text>' +
+  '<text x="60" y="232" font-size="10" fill="#A1A1AA" dominant-baseline="central">未运行 · Android 9</text>' +
+  '<circle cx="202" cy="216" r="3.5" fill="#D4D4D8"/>' +
+  '<text x="60" y="268" font-size="12" fill="#18181B" dominant-baseline="central">BlueStacks 5</text>' +
+  '<text x="60" y="284" font-size="10" fill="#A1A1AA" dominant-baseline="central">未运行 · Android 11</text>' +
+  '<circle cx="202" cy="268" r="3.5" fill="#D4D4D8"/>' +
+  '<rect x="48" y="300" width="164" height="36" rx="6" fill="none" stroke="#D4D4D8" stroke-width="1" stroke-dasharray="3 3"/>' +
+  '<text x="60" y="318" font-size="11" fill="#71717A" dominant-baseline="central">+ 手动添加模拟器路径</text>' +
+  '<text x="236" y="136" font-size="13" font-weight="500" fill="#18181B" dominant-baseline="central">MuMu 模拟器 12 · Player1</text>' +
+  '<text x="236" y="156" font-size="11" fill="#71717A" dominant-baseline="central">ADB 127.0.0.1:16384 · Android 12 · 已 root</text>' +
+  '<line x1="236" y1="172" x2="624" y2="172" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="236" y="192" font-size="11" fill="#71717A" dominant-baseline="central">扫描范围</text>' +
+  '<rect x="236" y="206" width="14" height="14" rx="3" fill="#0F766E"/>' + V.replace('%y', '213') +
+  '<text x="258" y="213" font-size="12" fill="#18181B" dominant-baseline="central">/sdcard/Android/data</text>' +
+  '<rect x="236" y="228" width="14" height="14" rx="3" fill="#0F766E"/>' + V.replace('%y', '235') +
+  '<text x="258" y="235" font-size="12" fill="#18181B" dominant-baseline="central">/sdcard/Android/obb</text>' +
+  '<text x="236" y="272" font-size="11" fill="#71717A" dominant-baseline="central">其他路径（可选）</text>' +
+  '<rect x="236" y="284" width="388" height="26" rx="6" fill="#FAFAFA" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="248" y="297" font-size="11" fill="#A1A1AA" dominant-baseline="central">模拟器共享目录，例如 C:\\MuMuShared\\</text>' +
+  '<rect x="236" y="330" width="120" height="30" rx="8" fill="#0F766E"/>' +
+  '<text x="296" y="345" font-size="12" font-weight="500" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">开始扫描</text>';
+
+const S2 =
+  '<rect x="40" y="114" width="180" height="277" fill="#FAFAFA"/>' +
+  '<line x1="220" y1="114" x2="220" y2="391" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="56" y="134" font-size="11" fill="#71717A" dominant-baseline="central">筛选</text>' +
+  '<rect x="48" y="144" width="164" height="30" rx="6" fill="#F0FDFA"/>' +
+  '<text x="60" y="159" font-size="12" font-weight="500" fill="#0F766E" dominant-baseline="central">全部</text>' +
+  '<text x="198" y="159" font-size="11" fill="#0F766E" text-anchor="end" dominant-baseline="central">15</text>' +
+  '<text x="60" y="193" font-size="12" fill="#18181B" dominant-baseline="central">完整</text>' +
+  '<text x="198" y="193" font-size="11" fill="#A1A1AA" text-anchor="end" dominant-baseline="central">12</text>' +
+  '<text x="60" y="227" font-size="12" fill="#18181B" dominant-baseline="central">缺文件</text>' +
+  '<text x="198" y="227" font-size="11" fill="#B45309" text-anchor="end" dominant-baseline="central">3</text>' +
+  '<text x="60" y="261" font-size="12" fill="#18181B" dominant-baseline="central">无动作</text>' +
+  '<text x="198" y="261" font-size="11" fill="#A1A1AA" text-anchor="end" dominant-baseline="central">0</text>' +
+  '<line x1="56" y1="284" x2="204" y2="284" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="56" y="302" font-size="11" fill="#71717A" dominant-baseline="central">来源</text>' +
+  '<text x="60" y="324" font-size="11" fill="#18181B" dominant-baseline="central">com.sega.pjsk</text>' +
+  '<text x="198" y="324" font-size="11" fill="#A1A1AA" text-anchor="end" dominant-baseline="central">12</text>' +
+  '<text x="60" y="348" font-size="11" fill="#18181B" dominant-baseline="central">com.bilibili.azurlane</text>' +
+  '<text x="198" y="348" font-size="11" fill="#A1A1AA" text-anchor="end" dominant-baseline="central">3</text>' +
+  '<rect x="236" y="126" width="13" height="13" rx="3" fill="#0F766E"/>' + V.replace('%y', '132.5') +
+  '<text x="258" y="133" font-size="11" fill="#71717A" dominant-baseline="central">模型</text>' +
+  '<text x="368" y="133" font-size="11" fill="#71717A" dominant-baseline="central">内容</text>' +
+  '<text x="552" y="133" font-size="11" fill="#71717A" text-anchor="end" dominant-baseline="central">体积</text>' +
+  '<text x="624" y="133" font-size="11" fill="#71717A" text-anchor="end" dominant-baseline="central">状态</text>' +
+  '<line x1="236" y1="146" x2="624" y2="146" stroke="#E4E4E7" stroke-width="1"/>' +
+  ROW(161, 'ichika_normal', '12 动作 · 4 表情', '18.6 MB', '完整', '#0F766E') +
+  ROW(191, 'saki_normal', '8 动作 · 2 表情', '14.2 MB', '完整', '#0F766E') +
+  ROW(221, 'minori_normal', '10 动作 · 6 表情', '21.3 MB', '缺纹理', '#B45309') +
+  ROW(251, 'haruka_normal', '6 动作 · 2 表情', '11.8 MB', '完整', '#0F766E') +
+  ROW(281, 'shiho_normal', '9 动作 · 3 表情', '9.4 MB', '完整', '#0F766E', false) +
+  ROW(311, 'honami_normal', '无动作文件', '7.2 MB', '无动作', '#A1A1AA', false) +
+  '<text x="236" y="359" font-size="11" fill="#71717A" dominant-baseline="central">已选 4 个包 · 65.9 MB</text>' +
+  '<rect x="504" y="344" width="120" height="28" rx="7" fill="#0F766E"/>' +
+  '<text x="564" y="358" font-size="12" font-weight="500" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">导出…</text>';
+
+function ROW(y, name, content, size, state, color, checked) {
+  var on = checked !== false;
+  return '<rect x="236" y="' + (y - 6.5) + '" width="13" height="13" rx="3" fill="' + (on ? '#0F766E' : '#FFFFFF') + '"' +
+    (on ? '' : ' stroke="#D4D4D8" stroke-width="1.3"') + '/>' +
+    (on ? V.replace('%y', y - 0.5) : '') +
+    '<text x="258" y="' + y + '" font-size="12" font-weight="500" fill="#18181B" dominant-baseline="central">' + name + '</text>' +
+    '<text x="368" y="' + y + '" font-size="11" fill="#71717A" dominant-baseline="central">' + content + '</text>' +
+    '<text x="552" y="' + y + '" font-size="11" fill="#71717A" text-anchor="end" dominant-baseline="central">' + size + '</text>' +
+    '<text x="624" y="' + y + '" font-size="11" fill="' + color + '" text-anchor="end" dominant-baseline="central">' + state + '</text>' +
+    (y < 290 ? '<line x1="236" y1="' + (y + 15) + '" x2="624" y2="' + (y + 15) + '" stroke="#E4E4E7" stroke-width="0.5"/>' : '');
+}
+
+const S3 =
+  '<rect x="40" y="114" width="180" height="277" fill="#FAFAFA"/>' +
+  '<line x1="220" y1="114" x2="220" y2="391" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="56" y="134" font-size="11" fill="#71717A" dominant-baseline="central">本次导出</text>' +
+  '<text x="56" y="178" font-size="26" font-weight="500" fill="#0F766E" dominant-baseline="central">4</text>' +
+  '<text x="80" y="184" font-size="11" fill="#71717A" dominant-baseline="central">个运行时包</text>' +
+  '<line x1="56" y1="200" x2="204" y2="200" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="56" y="222" font-size="11" fill="#71717A" dominant-baseline="central">文件</text>' +
+  '<text x="198" y="222" font-size="11" fill="#18181B" text-anchor="end" dominant-baseline="central">187</text>' +
+  '<text x="56" y="246" font-size="11" fill="#71717A" dominant-baseline="central">体积</text>' +
+  '<text x="198" y="246" font-size="11" fill="#18181B" text-anchor="end" dominant-baseline="central">65.9 MB</text>' +
+  '<text x="56" y="270" font-size="11" fill="#71717A" dominant-baseline="central">耗时</text>' +
+  '<text x="198" y="270" font-size="11" fill="#18181B" text-anchor="end" dominant-baseline="central">6.8 秒</text>' +
+  '<text x="56" y="294" font-size="11" fill="#71717A" dominant-baseline="central">校验</text>' +
+  '<text x="198" y="294" font-size="11" fill="#B45309" text-anchor="end" dominant-baseline="central">1 项警告</text>' +
+  '<circle cx="248" cy="160" r="15" fill="#F0FDFA"/>' +
+  '<path d="M241 160 l5 5 l10 -11" fill="none" stroke="#0F766E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '<text x="274" y="153" font-size="13" font-weight="500" fill="#18181B" dominant-baseline="central">导出完成</text>' +
+  '<text x="274" y="171" font-size="11" fill="#71717A" dominant-baseline="central">已写入磁盘，可直接用 Cubism Editor 打开</text>' +
+  '<text x="236" y="204" font-size="11" fill="#71717A" dominant-baseline="central">保存位置</text>' +
+  '<rect x="236" y="216" width="388" height="28" rx="6" fill="#FAFAFA" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="248" y="230" font-size="11" fill="#18181B" dominant-baseline="central">D:\\Live2D\\pjsk_extract\\com.sega.pjsk\\</text>' +
+  '<rect x="572" y="222" width="44" height="16" rx="4" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="594" y="230" font-size="10" fill="#71717A" text-anchor="middle" dominant-baseline="central">复制</text>' +
+  '<rect x="236" y="262" width="184" height="32" rx="8" fill="#0F766E"/>' +
+  '<text x="328" y="278" font-size="12" font-weight="500" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">用 Cubism Editor 打开</text>' +
+  '<rect x="428" y="262" width="112" height="32" rx="8" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="484" y="278" font-size="12" fill="#18181B" text-anchor="middle" dominant-baseline="central">打开文件夹</text>' +
+  '<rect x="548" y="262" width="76" height="32" rx="8" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="586" y="278" font-size="12" fill="#18181B" text-anchor="middle" dominant-baseline="central">复制路径</text>' +
+  '<line x1="236" y1="314" x2="624" y2="314" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<circle cx="242" cy="336" r="2.5" fill="#B45309"/>' +
+  '<text x="254" y="336" font-size="11" fill="#71717A" dominant-baseline="central">minori_normal 缺纹理图集，已在 manifest.txt 中标记</text>' +
+  '<circle cx="242" cy="356" r="2.5" fill="#A1A1AA"/>' +
+  '<text x="254" y="356" font-size="11" fill="#71717A" dominant-baseline="central">在 Cubism Editor 里选择 .model3.json，不是 .moc3</text>';
+
+/* ---------- 屏 2 · 扫描中（进度态） ---------- */
+
+function phase(y, label, st) {
+  var icon, color = '#18181B', weight = '400';
+  if (st === 'done') {
+    icon = '<circle cx="62" cy="' + y + '" r="7" fill="#0F766E"/>' +
+      '<path d="M58.7 ' + (y - 0.2) + ' l2.1 2.1 l4.2 -4.4" fill="none" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>';
+  } else if (st === 'active') {
+    icon = '<circle cx="62" cy="' + y + '" r="7" fill="#FAFAFA" stroke="#0F766E" stroke-width="1.4"/>' +
+      '<circle cx="62" cy="' + y + '" r="2.8" fill="#0F766E"/>';
+    color = '#0F766E'; weight = '500';
+  } else {
+    icon = '<circle cx="62" cy="' + y + '" r="7" fill="#FAFAFA" stroke="#E4E4E7" stroke-width="1.3"/>';
+    color = '#A1A1AA';
+  }
+  return icon + '<text x="80" y="' + y + '" font-size="11" font-weight="' + weight + '" fill="' + color + '" dominant-baseline="central">' + label + '</text>';
+}
+
+function found(y, name, content, size) {
+  return '<circle cx="240" cy="' + y + '" r="2.5" fill="#0F766E"/>' +
+    '<text x="252" y="' + y + '" font-size="12" font-weight="500" fill="#18181B" dominant-baseline="central">' + name + '</text>' +
+    '<text x="392" y="' + y + '" font-size="11" fill="#71717A" dominant-baseline="central">' + content + '</text>' +
+    '<text x="624" y="' + y + '" font-size="11" fill="#71717A" text-anchor="end" dominant-baseline="central">' + size + '</text>';
+}
+
+const RAIL =
+  '<line x1="62" y1="167" x2="62" y2="185" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<line x1="62" y1="199" x2="62" y2="217" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<line x1="62" y1="231" x2="62" y2="249" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<line x1="62" y1="263" x2="62" y2="281" stroke="#E4E4E7" stroke-width="1"/>';
+
+const S4 =
+  '<rect x="40" y="114" width="180" height="277" fill="#FAFAFA"/>' +
+  '<line x1="220" y1="114" x2="220" y2="391" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="56" y="134" font-size="11" fill="#71717A" dominant-baseline="central">扫描阶段</text>' +
+  RAIL +
+  phase(160, '探测模拟器实例', 'done') +
+  phase(192, '拉取应用清单', 'done') +
+  phase(224, '遍历资源目录', 'active') +
+  phase(256, '聚合运行时包', 'todo') +
+  phase(288, '完整性校验', 'todo') +
+  '<line x1="56" y1="320" x2="204" y2="320" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="56" y="342" font-size="11" fill="#A1A1AA" dominant-baseline="central">取消后已扫描的内容</text>' +
+  '<text x="56" y="360" font-size="11" fill="#A1A1AA" dominant-baseline="central">不会写入磁盘。</text>' +
+
+  '<text x="236" y="136" font-size="13" font-weight="500" fill="#18181B" dominant-baseline="central">正在扫描资源目录</text>' +
+  '<text x="236" y="156" font-size="11" fill="#71717A" dominant-baseline="central">com.sega.pjsk · 阶段 3 / 5 · 已用时 12 秒</text>' +
+  '<rect x="236" y="176" width="388" height="6" rx="3" fill="#E4E4E7"/>' +
+  '<rect x="236" y="176" width="248" height="6" rx="3" fill="#0F766E"/>' +
+  '<text x="236" y="198" font-size="11" font-weight="500" fill="#0F766E" dominant-baseline="central">64%</text>' +
+  '<text x="624" y="198" font-size="11" fill="#A1A1AA" text-anchor="end" dominant-baseline="central">预计剩余 8 秒</text>' +
+  '<line x1="236" y1="216" x2="624" y2="216" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="236" y="236" font-size="11" fill="#71717A" dominant-baseline="central">当前目录</text>' +
+  '<text x="236" y="256" font-size="11" fill="#18181B" dominant-baseline="central">/sdcard/Android/data/com.sega.pjsk/files/live2d/</text>' +
+  '<text x="236" y="274" font-size="11" fill="#71717A" dominant-baseline="central">已扫描 8,412 个文件 · 匹配 214 个 · 已聚合 9 个运行时包</text>' +
+  '<line x1="236" y1="294" x2="624" y2="294" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="236" y="314" font-size="11" fill="#71717A" dominant-baseline="central">最近聚合</text>' +
+  '<text x="624" y="314" font-size="11" fill="#A1A1AA" text-anchor="end" dominant-baseline="central">共 9 个</text>' +
+  found(336, 'ichika_normal', '12 动作 · 4 表情', '18.6 MB') +
+  found(358, 'saki_normal', '8 动作 · 2 表情', '14.2 MB');
+
+/* ---------- 态 A · 扫描结果为空 ---------- */
+
+function bullet(y, color, text) {
+  return '<circle cx="242" cy="' + y + '" r="2.5" fill="' + color + '"/>' +
+    '<text x="254" y="' + y + '" font-size="11" fill="#71717A" dominant-baseline="central">' + text + '</text>';
+}
+
+const S5 =
+  '<rect x="40" y="114" width="180" height="277" fill="#FAFAFA"/>' +
+  '<line x1="220" y1="114" x2="220" y2="391" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="56" y="134" font-size="11" fill="#71717A" dominant-baseline="central">本次扫描</text>' +
+  '<text x="56" y="180" font-size="26" font-weight="500" fill="#18181B" dominant-baseline="central">0</text>' +
+  '<text x="80" y="186" font-size="11" fill="#71717A" dominant-baseline="central">个运行时包</text>' +
+  '<line x1="56" y1="204" x2="204" y2="204" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="56" y="226" font-size="11" fill="#71717A" dominant-baseline="central">扫描文件</text>' +
+  '<text x="198" y="226" font-size="11" fill="#18181B" text-anchor="end" dominant-baseline="central">12,480</text>' +
+  '<text x="56" y="250" font-size="11" fill="#71717A" dominant-baseline="central">明文命中</text>' +
+  '<text x="198" y="250" font-size="11" fill="#18181B" text-anchor="end" dominant-baseline="central">0</text>' +
+  '<text x="56" y="274" font-size="11" fill="#71717A" dominant-baseline="central">压缩容器</text>' +
+  '<text x="198" y="274" font-size="11" fill="#B45309" text-anchor="end" dominant-baseline="central">3</text>' +
+  '<text x="56" y="298" font-size="11" fill="#71717A" dominant-baseline="central">疑似加密</text>' +
+  '<text x="198" y="298" font-size="11" fill="#B45309" text-anchor="end" dominant-baseline="central">1</text>' +
+  '<line x1="56" y1="320" x2="204" y2="320" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="56" y="342" font-size="11" fill="#A1A1AA" dominant-baseline="central">扫描仅读取文件，</text>' +
+  '<text x="56" y="360" font-size="11" fill="#A1A1AA" dominant-baseline="central">未做任何修改。</text>' +
+
+  '<circle cx="248" cy="152" r="15" fill="#FAFAFA" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<circle cx="246" cy="150" r="5.5" fill="none" stroke="#71717A" stroke-width="1.5"/>' +
+  '<line x1="250" y1="154" x2="254" y2="158" stroke="#71717A" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<text x="274" y="145" font-size="13" font-weight="500" fill="#18181B" dominant-baseline="central">未找到可用的运行时包</text>' +
+  '<text x="274" y="164" font-size="11" fill="#71717A" dominant-baseline="central">明文扫描 12,480 个文件，未命中任何 .model3.json</text>' +
+  '<line x1="236" y1="186" x2="624" y2="186" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="236" y="206" font-size="11" fill="#71717A" dominant-baseline="central">已发现的资源容器</text>' +
+  bullet(228, '#B45309', 'files_obb/main.obb  ·  412 MB  ·  标准 zip') +
+  bullet(250, '#B45309', 'files/cache/live2d.dat  ·  86 MB  ·  文件头未知') +
+  bullet(272, '#A1A1AA', '两者均不含明文 .model3.json') +
+  '<rect x="236" y="292" width="388" height="46" rx="8" fill="#FFFBEB" stroke="#FDE68A" stroke-width="1"/>' +
+  '<text x="250" y="309" font-size="11" fill="#B45309" dominant-baseline="central">标准 zip / obb 可自动解包；加密容器本工具暂不支持。</text>' +
+  '<text x="250" y="325" font-size="11" fill="#71717A" dominant-baseline="central">解包后重新扫描，或更换目录确认游戏是否使用 Live2D。</text>' +
+  '<rect x="236" y="352" width="152" height="30" rx="8" fill="#0F766E"/>' +
+  '<text x="312" y="367" font-size="12" font-weight="500" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">尝试解包压缩资源</text>' +
+  '<rect x="400" y="352" width="112" height="30" rx="8" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="456" y="367" font-size="12" fill="#18181B" text-anchor="middle" dominant-baseline="central">更换扫描目录</text>' +
+  '<rect x="524" y="352" width="100" height="30" rx="8" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="574" y="367" font-size="12" fill="#18181B" text-anchor="middle" dominant-baseline="central">查看扫描日志</text>';
+
+/* ---------- 态 B · 解包失败（报错态） ---------- */
+
+function packRow(y, name, status, color, ok) {
+  var icon = ok
+    ? '<circle cx="242" cy="' + y + '" r="6" fill="#0F766E"/>' +
+      '<path d="M239.2 ' + (y - 0.2) + ' l1.9 1.9 l3.8 -4" fill="none" stroke="#FFFFFF" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>'
+    : '<circle cx="242" cy="' + y + '" r="6" fill="#FFFBEB" stroke="#B45309" stroke-width="1.3"/>' +
+      '<path d="M242 ' + (y - 2.6) + ' v4" stroke="#B45309" stroke-width="1.3" stroke-linecap="round"/>' +
+      '<circle cx="242" cy="' + (y + 3) + '" r="0.9" fill="#B45309"/>';
+  return icon +
+    '<text x="256" y="' + y + '" font-size="12" fill="#18181B" dominant-baseline="central">' + name + '</text>' +
+    '<text x="624" y="' + y + '" font-size="11" fill="' + color + '" text-anchor="end" dominant-baseline="central">' + status + '</text>';
+}
+
+const S6 =
+  '<rect x="40" y="114" width="180" height="277" fill="#FAFAFA"/>' +
+  '<line x1="220" y1="114" x2="220" y2="391" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="56" y="134" font-size="11" fill="#71717A" dominant-baseline="central">解包任务</text>' +
+  '<text x="56" y="180" font-size="26" font-weight="500" fill="#B45309" dominant-baseline="central">2</text>' +
+  '<text x="80" y="186" font-size="11" fill="#71717A" dominant-baseline="central">项失败</text>' +
+  '<line x1="56" y1="204" x2="204" y2="204" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="56" y="226" font-size="11" fill="#71717A" dominant-baseline="central">尝试</text>' +
+  '<text x="198" y="226" font-size="11" fill="#18181B" text-anchor="end" dominant-baseline="central">3</text>' +
+  '<text x="56" y="250" font-size="11" fill="#71717A" dominant-baseline="central">成功</text>' +
+  '<text x="198" y="250" font-size="11" fill="#0F766E" text-anchor="end" dominant-baseline="central">1</text>' +
+  '<text x="56" y="274" font-size="11" fill="#71717A" dominant-baseline="central">失败</text>' +
+  '<text x="198" y="274" font-size="11" fill="#B45309" text-anchor="end" dominant-baseline="central">2</text>' +
+  '<text x="56" y="298" font-size="11" fill="#71717A" dominant-baseline="central">已聚合</text>' +
+  '<text x="198" y="298" font-size="11" fill="#18181B" text-anchor="end" dominant-baseline="central">12</text>' +
+  '<line x1="56" y1="320" x2="204" y2="320" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="56" y="342" font-size="11" fill="#A1A1AA" dominant-baseline="central">诊断报告已保存至</text>' +
+  '<text x="56" y="360" font-size="11" fill="#A1A1AA" dominant-baseline="central">diagnostics.txt</text>' +
+
+  '<circle cx="248" cy="152" r="15" fill="#FFFBEB" stroke="#FDE68A" stroke-width="1"/>' +
+  '<text x="248" y="153" font-size="14" font-weight="500" fill="#B45309" text-anchor="middle" dominant-baseline="central">!</text>' +
+  '<text x="274" y="145" font-size="13" font-weight="500" fill="#18181B" dominant-baseline="central">解包失败</text>' +
+  '<text x="274" y="164" font-size="11" fill="#71717A" dominant-baseline="central">3 个资源容器中 1 个成功，2 个无法处理</text>' +
+  '<line x1="236" y1="186" x2="624" y2="186" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="236" y="206" font-size="11" fill="#71717A" dominant-baseline="central">处理结果</text>' +
+  '<text x="624" y="206" font-size="11" fill="#A1A1AA" text-anchor="end" dominant-baseline="central">3 项</text>' +
+  packRow(230, 'files_obb/main.obb', '失败 · 未知压缩格式', '#B45309', false) +
+  packRow(256, 'files/cache/live2d.dat', '失败 · 自定义加密头 0x4C32', '#B45309', false) +
+  packRow(282, 'files/live2d_pack.zip', '成功 · 聚合 12 个包', '#0F766E', true) +
+  '<line x1="236" y1="304" x2="624" y2="304" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="236" y="324" font-size="11" fill="#71717A" dominant-baseline="central">失败原因：容器不是标准 zip 结构，或文件头为游戏自定义加密。</text>' +
+  '<text x="236" y="342" font-size="11" fill="#71717A" dominant-baseline="central">本工具支持明文资源与标准 zip / obb；上两项已写入诊断报告。</text>' +
+  '<rect x="236" y="356" width="140" height="30" rx="8" fill="#0F766E"/>' +
+  '<text x="306" y="371" font-size="12" font-weight="500" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">用已解包内容继续</text>' +
+  '<rect x="388" y="356" width="88" height="30" rx="8" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="432" y="371" font-size="12" fill="#18181B" text-anchor="middle" dominant-baseline="central">查看日志</text>' +
+  '<rect x="488" y="356" width="100" height="30" rx="8" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1"/>' +
+  '<text x="538" y="371" font-size="12" fill="#18181B" text-anchor="middle" dominant-baseline="central">复制诊断</text>';
+
+/* ---------- 装配 ---------- */
+
+const SCREENS = [
+  { n: 1, label: '屏 1 · 连接模拟器', title: '连接模拟器', desc: '自动发现本机模拟器实例与 ADB 端口，标注运行与 root 状态，选定扫描范围。',
+    top: ['MuMu 12 · /sdcard/Android/data/com.sega.pjsk/', '浏览…'],
+    bottom: '就绪 · 检测到 3 个模拟器 · 当前连接 MuMu 12 (Player1)', inner: S1 },
+  { n: 2, label: '屏 2 · 扫描中（进度态）', title: '扫描中', desc: '五阶段进度、当前遍历路径、实时聚合计数。用户判断「卡没卡死」的唯一依据是路径和数字在变。',
+    top: ['MuMu 12 · /sdcard/Android/data/com.sega.pjsk/', '取消扫描'],
+    bottom: '扫描中 · 已扫描 8,412 个文件 · 已聚合 9 个包 · 用时 12 秒', inner: S4 },
+  { n: 3, label: '屏 3 · 扫描结果', title: '扫描结果', desc: '表格列出聚合到的运行时包，按完整性筛选，残包默认不勾选但在状态列标出。',
+    top: ['MuMu 12 · /sdcard/Android/data/com.sega.pjsk/', '重新扫描'],
+    bottom: '扫描完成 · 15 个运行时包 · 耗时 4.2 秒', inner: S2 },
+  { n: 4, label: '屏 4 · 导出完成', title: '导出完成', desc: '导出摘要、保存路径与一键用本机 Cubism Editor 打开，并提示入口文件是 model3.json。',
+    top: ['D:\\Live2D\\pjsk_extract\\', '打开目录'],
+    bottom: '导出完成 · D:\\Live2D\\pjsk_extract\\ · 1 个包缺纹理', inner: S3 }
+];
+
+const STATES = [
+  { n: 'A', label: '态 A · 扫描结果为空', title: '扫描结果为空', desc: '0 命中不是「没找到」，是「找到了什么、但打不开」。列出已发现的容器与格式判断，并给出能力边界。',
+    top: ['MuMu 12 · /sdcard/Android/data/com.sega.pjsk/', '重新扫描'],
+    bottom: '扫描完成 · 12,480 个文件 · 明文命中 0 · 压缩容器 3 · 加密容器 1', inner: S5 },
+  { n: 'B', label: '态 B · 解包失败（报错态）', title: '解包失败', desc: '逐项列出哪个容器失败、失败在哪一步。主按钮是用已解包内容继续，不是重试——加密容器重试没有意义。',
+    top: ['MuMu 12 · /sdcard/Android/data/com.sega.pjsk/files_obb/', '重新解包'],
+    bottom: '解包完成 · 1 成功 / 2 失败 · 诊断信息可复制', inner: S6 }
+];
+
+function mount(nodeId, list) {
+  document.getElementById(nodeId).innerHTML = list.map(function (s) {
+    var id = 'w' + nodeId + s.n;
+    return '<div class="screen">' +
+      '<svg viewBox="30 30 620 395" role="img" aria-label="' + s.label + '">' +
+      '<defs><clipPath id="' + id + '"><rect x="40" y="40" width="600" height="375" rx="8"/></clipPath></defs>' +
+      '<g clip-path="url(#' + id + ')">' +
+      '<rect x="40" y="40" width="600" height="375" fill="#FFFFFF"/>' +
+      TITLEBAR + toolbar(s.top[0], s.top[1]) + s.inner + statusbar(s.bottom) +
+      '</g>' +
+      '<rect x="40" y="40" width="600" height="375" rx="8" fill="none" stroke="#D4D4D8" stroke-width="1"/>' +
+      '</svg>' +
+      '<div class="screen-label">' + s.label + '</div>' +
+      '<div class="screen-desc">' + s.desc + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+mount('screens', SCREENS);
+mount('states', STATES);
+</script>
+
+</body>
+</html>

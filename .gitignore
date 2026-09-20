@@ -1,0 +1,21 @@
+# 依赖
+node_modules/
+
+# 打包产物（node tools/package.js 生成，含 268 MB Electron 运行时）
+dist/
+
+# 运行日志
+.logs/
+logs/
+*.log
+
+# tencent-docx 流水线留痕（中间产物，成品已归档到 docs/）
+output/8e349cee-ff8f-42c0-aef2-f1dbc87f2edf/
+
+# 系统与编辑器
+Thumbs.db
+Desktop.ini
+.DS_Store
+.idea/
+.vscode/
+*.swp

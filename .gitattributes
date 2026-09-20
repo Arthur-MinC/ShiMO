@@ -1,0 +1,12 @@
+# 统一换行符（本机 core.autocrlf=true，显式钉住免得跨平台产生整文件 diff）
+* text=auto eol=lf
+
+# 二进制，不做任何转换
+*.png binary
+*.jpg binary
+*.docx binary
+*.exe binary
+*.dll binary
+*.pak binary
+*.dat binary
+*.obb binary

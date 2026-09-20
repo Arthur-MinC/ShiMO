@@ -1,0 +1,19 @@
+{
+  "name": "shimo",
+  "productName": "拾模",
+  "version": "1.0.0",
+  "description": "拾模 · 桌面端 Live2D 运行时包提取工具",
+  "main": "src/main/index.js",
+  "private": true,
+  "scripts": {
+    "start": "node tools/launch.js",
+    "dev": "node tools/launch.js --dev",
+    "selfcheck": "node tools/launch.js --app tools/selfcheck",
+    "package": "node tools/package.js",
+    "package:verify": "node tools/package.js --verify",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "devDependencies": {
+    "electron": "^33.2.0"
+  }
+}
