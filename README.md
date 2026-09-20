@@ -127,6 +127,19 @@ node tools/launch.js --app tools/selfcheck  # 六屏真实渲染 + 几何检查
    溢出一旦涨上去就是版式回归：基线在 `tools/selfcheck/layout-baseline.js`，超限 → 自检退出码 1。
    新增屏幕要在 `tools/selfcheck/screens.js` 登记 + 补基线，否则自检会静默跳过它。
 
+4. **自检截图必须字节可重现，否则它就不能进版本库。**
+   `output/selfcheck/*.png` 是 README 直接引用的（不另存副本 —— 副本会漂，就是约定 1 那个坑），
+   所以它们必须在仓库里。代价是每次重跑自检都会产生 diff：
+   只要 diff 是**噪**的，真发生 UI 变化时反而看不出来。抖动的来源是次像素抗锯齿（LCD text），
+   它依赖 GPU 与屏幕子像素排列。`tools/selfcheck/main.js` 里两个开关钉死它：
+
+   ```js
+   app.commandLine.appendSwitch('disable-lcd-text');
+   app.commandLine.appendSwitch('force-color-profile', 'srgb');
+   ```
+
+   实测连跑两次，7 张 PNG **字节完全一致**（sha256 全等）。加渲染开关前是 5/6 每次变。
+
 ### 实例身份一律用 `id`，绝不用 `serial`
 
 未运行的实例 `serial` 是 `null`（它压根没连上 adb），而 `null === null` 为真 ——
@@ -145,6 +158,31 @@ node tools/package.js --verify   # 额外真启动一次产物，确认 window r
 
 产物 `dist/拾模-<版本>-win-x64/`，约 268 MB。
 **`--verify` 是必须的**：静态检查只能证明文件都在，证明不了它跑得起来。
+
+## 发布
+
+```bash
+node tools/package.js --verify    # 1. 打包并真启动一次产物
+node tools/archive.js             # 2. 压成 zip（默认解压回来逐文件比对）
+node tools/release.js --dry-run   # 3. 检查前置条件
+node tools/release.js             # 4. 建 draft → 上传 → 转正式发布
+```
+
+发布说明写在 `docs/releases/v<版本>.md`，脚本直接拿它当 release 正文。
+改了说明要同步线上：`node tools/release.js --notes-only`。
+
+**asset 名必须是 ASCII。** GitHub 会**静默剥掉** release asset 名里的非 ASCII 字符 ——
+`拾模-1.0.0-win-x64.zip` 传上去会变成 `-1.0.0-win-x64.zip`，不报任何错。
+所以 `package.json` 里有 `assetBaseName: "ShiMo"`，zip 与 asset 名都用它拼；
+zip **内部**的顶层目录仍是中文 `拾模-1.0.0-win-x64/`，用户解压后看到的是中文目录和 `拾模.exe`。
+
+`tools/archive.js` 是手写的 ZIP 容器（node 内置 zlib + `zlib.crc32`）。
+**默认会用 `tar` 解压一遍再逐文件比 md5** —— 自己读自己写的 zip 是自证，
+交给 libarchive 这个独立实现才算数。跳过用 `--no-verify`，但发布前别跳。
+
+> 凭据：`release.js` 从 git 凭据助手现取 token，**不落盘、不打印、不进命令行** ——
+> 传给 curl 走 `-K` 配置文件，用完即删。系统级 `credential.helper=helper-selector`
+> 是交互式的会挂住，所以显式用 `wincred` 读 Windows 凭据管理器。
 
 ## 已知限制
 
