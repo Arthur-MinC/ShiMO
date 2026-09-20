@@ -1,0 +1,69 @@
+/* ============================================================
+   拾模 · 设计令牌
+   全部数值来自设计稿 shimo-desktop-live2d-design.html，
+   并按其说明「示例稿按 600×375 绘制，开发时整体 ×2」等比放大。
+   ============================================================ */
+
+:root {
+  /* ---- 色彩 ---- */
+  /* 全稿只有一个强调色 */
+  --accent: #0F766E;
+  --accent-soft: #F0FDFA;
+  --accent-hover: #0D655E;
+  --accent-press: #0B5750;
+
+  --text: #18181B;      /* 主文字（不使用纯黑） */
+  --text-2: #71717A;    /* 次级文字 */
+  --text-3: #A1A1AA;    /* 辅助文字 */
+  --text-disabled: #C4C4C8;
+
+  --border: #E4E4E7;        /* 分隔线，只用 1px */
+  --border-strong: #D4D4D8;
+  --surface: #FFFFFF;
+  --bg: #FAFAFA;
+  --bg-sunken: #F4F4F5;
+
+  /* 警告态：只出现在「缺纹理」这类校验失败标记与对应提示上 */
+  --warn: #B45309;
+  --warn-soft: #FFFBEB;
+  --warn-border: #FDE68A;
+
+  --ok: #0F766E;
+  --ok-soft: #F0FDFA;
+
+  /* ---- 尺寸（设计稿 ×2） ---- */
+  --titlebar-h: 60px;    /* 设计稿 30 */
+  --toolbar-h: 88px;     /* 设计稿 44 */
+  --statusbar-h: 48px;   /* 设计稿 24 */
+  --sidebar-w: 360px;    /* 设计稿 180，固定宽 */
+
+  /* ---- 字号（设计稿 ×2） ---- */
+  --fs-window-title: 24px;  /* 设计稿 12 */
+  --fs-section: 26px;       /* 设计稿 13 */
+  --fs-body: 24px;          /* 设计稿 12 */
+  --fs-aux: 22px;           /* 设计稿 11 */
+  --fs-status: 20px;        /* 设计稿 10 */
+
+  /* ---- 行高（设计稿 ×2） ---- */
+  --row-sidebar: 64px;      /* 设计稿 32 */
+  --row-table: 60px;        /* 设计稿 30 */
+
+  /* ---- 圆角（设计稿 ×2） ---- */
+  --r-xs: 8px;              /* 设计稿 4，用于勾选框 */
+  --r-sm: 12px;             /* 设计稿 6，输入框 / 侧栏选中态 */
+  --r-md: 14px;             /* 设计稿 7 */
+  --r-lg: 16px;             /* 设计稿 8，按钮 / 窗口 */
+  --r-pill: 999px;
+
+  /* ---- 间距（设计稿 ×2） ---- */
+  --sp-1: 8px;
+  --sp-2: 12px;
+  --sp-3: 16px;
+  --sp-4: 24px;
+  --sp-5: 32px;
+  --sp-6: 48px;
+
+  /* ---- 字体 ---- */
+  --ff: 'Geist', 'Noto Sans SC', system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --ff-mono: ui-monospace, 'JetBrains Mono', Consolas, monospace;
+}

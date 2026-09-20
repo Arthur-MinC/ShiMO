@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;">
+<title>拾模</title>
+<link rel="stylesheet" href="styles/tokens.css">
+<link rel="stylesheet" href="styles/app.css">
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- 标题栏 · 设计稿 30px ×2 = 60px -->
+  <header class="titlebar">
+    <div class="titlebar__brand">
+      <span class="titlebar__logo" aria-hidden="true"></span>
+      <span class="titlebar__name">拾模</span>
+    </div>
+    <div class="titlebar__controls">
+      <button class="wbtn" type="button" data-win="minimize" title="最小化" aria-label="最小化">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </button>
+      <button class="wbtn" type="button" data-win="maximize" title="最大化" aria-label="最大化">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>
+      </button>
+      <button class="wbtn wbtn--close" type="button" data-win="close" title="关闭" aria-label="关闭">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M8 8l8 8M16 8l-8 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- 工具栏 · 设计稿 44px ×2 = 88px -->
+  <div class="toolbar">
+    <div class="pathbox" id="pathbox" title="">
+      <span class="pathbox__text" id="pathboxText">正在检测本机模拟器…</span>
+    </div>
+    <button class="btn btn--ghost" type="button" id="toolbarBtn">浏览…</button>
+  </div>
+
+  <!-- 主体：侧栏 180px×2 = 360px + 主区自适应 -->
+  <div class="body">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main" id="main"></main>
+  </div>
+
+  <!-- 状态栏 · 设计稿 24px ×2 = 48px -->
+  <footer class="statusbar">
+    <span class="statusbar__text" id="statusText">就绪</span>
+    <span class="statusbar__right" id="statusRight"></span>
+  </footer>
+
+</div>
+
+<!-- 轻量提示层 -->
+<div class="toast-layer" id="toastLayer" aria-live="polite"></div>
+
+<!-- 模态层 -->
+<div class="modal-layer" id="modalLayer" hidden></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
